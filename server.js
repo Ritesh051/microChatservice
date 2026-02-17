@@ -8,6 +8,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 
 const connectDB = require('./config/db');
 const { initRedis, closeRedis } = require('./config/redis');
@@ -46,6 +47,8 @@ app.use(
 
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
 
 /* ================= ROUTES ================= */
 

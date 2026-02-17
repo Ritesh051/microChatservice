@@ -26,19 +26,11 @@ const conversationSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/* =========================================
-   ✅ ENSURE EXACTLY 2 USERS (NO next())
-========================================= */
-
 conversationSchema.pre('save', function () {
   if (this.participants.length !== 2) {
     throw new Error('Conversation must have exactly 2 participants');
   }
 });
-
-/* =========================================
-   ✅ SAFE FIND OR CREATE
-========================================= */
 
 conversationSchema.statics.findOrCreate = async function (
   userId1,
@@ -65,10 +57,6 @@ conversationSchema.statics.findOrCreate = async function (
 
   return convo;
 };
-
-/* =========================================
-   ✅ UNREAD MANAGEMENT
-========================================= */
 
 conversationSchema.methods.incrementUnread = async function (
   userId
