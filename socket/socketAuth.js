@@ -55,13 +55,13 @@ const socketAuth = async (socket, next) => {
     }
 
     /* ===============================
-       6️⃣ Attach user to socket
-    =============================== */
+   6️⃣ Attach user to socket
+=============================== */
     socket.userId = user._id.toString();
-    socket.userHandle = user.handle;
+    socket.userHandle = user.handle || "User";
     socket.user = user;
 
-    console.log('✅ Socket authenticated:', user.handle);
+    console.log('✅ Socket authenticated:', socket.userHandle);
 
     next();
 

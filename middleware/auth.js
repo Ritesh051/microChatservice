@@ -5,8 +5,18 @@ const protect = async (req, res, next) => {
   try {
     let token = null;
 
-    // Extract token from Authorization header
+    /* =========================
+       1️⃣ Try HttpOnly cookie
+    ========================= */
+    if (req.cookies?.authtoken) {
+      token = req.cookies.authtoken;
+    }
+
+    /* =========================
+       2️⃣ Fallback: Authorization header
+    ========================= */
     if (
+      !token &&
       req.headers.authorization &&
       req.headers.authorization.startsWith('Bearer ')
     ) {
@@ -20,10 +30,11 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // Verify JWT
+    /* =========================
+       3️⃣ Verify token
+    ========================= */
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Standardized payload support
     const userId = decoded.id || decoded._id || decoded.userId;
 
     if (!userId) {
@@ -33,7 +44,9 @@ const protect = async (req, res, next) => {
       });
     }
 
-    // Fetch user (exclude password)
+    /* =========================
+       4️⃣ Find user
+    ========================= */
     const user = await User.findById(userId).select('-password');
 
     if (!user) {
@@ -45,6 +58,7 @@ const protect = async (req, res, next) => {
 
     req.user = user;
     next();
+
   } catch (error) {
     return res.status(401).json({
       success: false,
