@@ -1,25 +1,22 @@
 const { getRedisClient } = require('../config/redis');
 
 const ONLINE_USERS_KEY = 'online_users';
-const USER_SOCKET_PREFIX = 'user_socket:';
+const USER_SOCKET_PREFIX = 'user_sockets:'; // changed (plural)
 
 /**
- * Add user to online users set in Redis
- * @param {string} userId - User's MongoDB _id
- * @param {string} socketId - Socket.io socket ID
+ * Add user socket
+ * Supports multiple sockets per user
  */
 const addOnlineUser = async (userId, socketId) => {
   try {
     const redis = getRedisClient();
-    
-    // Add to online users set
+
+    // Add user to online users set
     await redis.sAdd(ONLINE_USERS_KEY, userId);
-    
-    // Store socket ID mapping
-    await redis.set(`${USER_SOCKET_PREFIX}${userId}`, socketId, {
-      EX: 86400, // Expire in 24 hours
-    });
-    
+
+    // Add socketId to user's socket set
+    await redis.sAdd(`${USER_SOCKET_PREFIX}${userId}`, socketId);
+
     return true;
   } catch (error) {
     console.error('Redis addOnlineUser error:', error);
@@ -28,19 +25,27 @@ const addOnlineUser = async (userId, socketId) => {
 };
 
 /**
- * Remove user from online users set in Redis
- * @param {string} userId - User's MongoDB _id
+ * Remove a specific socket for a user
+ * Only mark user offline if no sockets remain
  */
-const removeOnlineUser = async (userId) => {
+const removeOnlineUser = async (userId, socketId) => {
   try {
     const redis = getRedisClient();
-    
-    // Remove from online users set
-    await redis.sRem(ONLINE_USERS_KEY, userId);
-    
-    // Remove socket ID mapping
-    await redis.del(`${USER_SOCKET_PREFIX}${userId}`);
-    
+
+    // Remove this socket from user's socket set
+    await redis.sRem(`${USER_SOCKET_PREFIX}${userId}`, socketId);
+
+    // Check if user still has active sockets
+    const remainingSockets = await redis.sCard(
+      `${USER_SOCKET_PREFIX}${userId}`
+    );
+
+    if (remainingSockets === 0) {
+      // Remove user from online users
+      await redis.sRem(ONLINE_USERS_KEY, userId);
+      await redis.del(`${USER_SOCKET_PREFIX}${userId}`);
+    }
+
     return true;
   } catch (error) {
     console.error('Redis removeOnlineUser error:', error);
@@ -49,14 +54,12 @@ const removeOnlineUser = async (userId) => {
 };
 
 /**
- * Get all online user IDs
- * @returns {Array<string>} Array of user IDs
+ * Get all online users
  */
 const getOnlineUsers = async () => {
   try {
     const redis = getRedisClient();
-    const userIds = await redis.sMembers(ONLINE_USERS_KEY);
-    return userIds;
+    return await redis.sMembers(ONLINE_USERS_KEY);
   } catch (error) {
     console.error('Redis getOnlineUsers error:', error);
     return [];
@@ -64,15 +67,12 @@ const getOnlineUsers = async () => {
 };
 
 /**
- * Check if a user is online
- * @param {string} userId - User's MongoDB _id
- * @returns {boolean}
+ * Check if user is online
  */
 const isUserOnline = async (userId) => {
   try {
     const redis = getRedisClient();
-    const isMember = await redis.sIsMember(ONLINE_USERS_KEY, userId);
-    return isMember;
+    return await redis.sIsMember(ONLINE_USERS_KEY, userId);
   } catch (error) {
     console.error('Redis isUserOnline error:', error);
     return false;
@@ -80,26 +80,21 @@ const isUserOnline = async (userId) => {
 };
 
 /**
- * Get socket ID for a user
- * @param {string} userId - User's MongoDB _id
- * @returns {string|null} Socket ID or null
+ * Get ALL socket IDs for a user
+ * Returns array of socket IDs
  */
-const getUserSocketId = async (userId) => {
+const getUserSocketIds = async (userId) => {
   try {
     const redis = getRedisClient();
-    const socketId = await redis.get(`${USER_SOCKET_PREFIX}${userId}`);
-    return socketId;
+    return await redis.sMembers(`${USER_SOCKET_PREFIX}${userId}`);
   } catch (error) {
-    console.error('Redis getUserSocketId error:', error);
-    return null;
+    console.error('Redis getUserSocketIds error:', error);
+    return [];
   }
 };
 
 /**
- * Cache user data temporarily
- * @param {string} userId - User's MongoDB _id
- * @param {object} userData - User data to cache
- * @param {number} ttl - Time to live in seconds
+ * Cache user data
  */
 const cacheUserData = async (userId, userData, ttl = 3600) => {
   try {
@@ -118,8 +113,6 @@ const cacheUserData = async (userId, userData, ttl = 3600) => {
 
 /**
  * Get cached user data
- * @param {string} userId - User's MongoDB _id
- * @returns {object|null} Cached user data or null
  */
 const getCachedUserData = async (userId) => {
   try {
@@ -137,7 +130,7 @@ module.exports = {
   removeOnlineUser,
   getOnlineUsers,
   isUserOnline,
-  getUserSocketId,
+  getUserSocketIds, // renamed
   cacheUserData,
   getCachedUserData,
 };

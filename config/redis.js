@@ -5,8 +5,6 @@ let redisClient = null;
 const initRedis = async () => {
   try {
     if (redisClient) return redisClient;
-
-    // ✅ Prefer REDIS_URL if provided (Production)
     if (process.env.REDIS_URL) {
       redisClient = redis.createClient({
         url: process.env.REDIS_URL,
