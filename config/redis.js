@@ -10,7 +10,6 @@ const initRedis = async () => {
         url: process.env.REDIS_URL,
       });
     } else {
-      // ✅ Fallback for local development
       redisClient = redis.createClient({
         socket: {
           host: process.env.REDIS_HOST || '127.0.0.1',
@@ -23,36 +22,36 @@ const initRedis = async () => {
     }
 
     redisClient.on('error', (err) => {
-      console.error('❌ Redis Error:', err.message);
+      console.error('Redis Error:', err.message);
     });
 
     redisClient.on('connect', () => {
-      console.log('🔌 Redis Connecting...');
+      console.log('Redis Connecting...');
     });
 
     redisClient.on('ready', () => {
-      console.log('✅ Redis Connected');
+      console.log('Redis Connected');
     });
 
     redisClient.on('reconnecting', () => {
-      console.log('🔄 Redis Reconnecting...');
+      console.log('Redis Reconnecting...');
     });
 
     redisClient.on('end', () => {
-      console.warn('⚠️ Redis Connection Closed');
+      console.warn('Redis Connection Closed');
     });
 
     await redisClient.connect();
 
     await redisClient.ping();
-    console.log('🏓 Redis PING Successful');
+    console.log('Redis PING Successful');
 
     return redisClient;
 
   } catch (error) {
-    console.error(`❌ Redis connection failed: ${error.message}`);
+    console.error(`Redis connection failed: ${error.message}`);
     console.warn(
-      '⚠️ Running without Redis (real-time features may be limited)'
+      'Running without Redis (real-time features may be limited)'
     );
     return null;
   }

@@ -28,7 +28,7 @@ const socketAuth = async (socket, next) => {
        3️⃣ If still no token
     =============================== */
     if (!token) {
-      console.log('❌ No token found in socket handshake');
+      console.log(' No token found in socket handshake');
       return next(new Error('Authentication token required'));
     }
 
@@ -40,7 +40,7 @@ const socketAuth = async (socket, next) => {
     const userId = decoded.id || decoded._id || decoded.userId;
 
     if (!userId) {
-      console.log('❌ Invalid token payload:', decoded);
+      console.log('Invalid token payload:', decoded);
       return next(new Error('Invalid token payload'));
     }
 
@@ -50,7 +50,7 @@ const socketAuth = async (socket, next) => {
     const user = await User.findById(userId).select('-password');
 
     if (!user) {
-      console.log('❌ User not found for ID:', userId);
+      console.log('User not found for ID:', userId);
       return next(new Error('User not found'));
     }
 
@@ -61,12 +61,12 @@ const socketAuth = async (socket, next) => {
     socket.userHandle = user.handle || "User";
     socket.user = user;
 
-    console.log('✅ Socket authenticated:', socket.userHandle);
+    console.log('Socket authenticated:', socket.userHandle);
 
     next();
 
   } catch (error) {
-    console.error('❌ Socket auth error:', error.message);
+    console.error(' Socket auth error:', error.message);
     next(new Error('Invalid or expired token'));
   }
 };

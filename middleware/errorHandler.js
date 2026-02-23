@@ -37,7 +37,7 @@ const errorHandler = (err, req, res, next) => {
   // ===== LOGGING (Development Only) =====
 
   if (process.env.NODE_ENV === 'development') {
-    console.error('🔥 ERROR:', err);
+    console.error('ERROR:', err);
   }
 
   res.status(statusCode).json({
