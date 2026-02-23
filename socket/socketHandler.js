@@ -13,7 +13,7 @@ module.exports = (io) => {
   io.use(socketAuth);
 
   io.on('connection', async (socket) => {
-    console.log(`🔌 ${socket.userHandle} connected (${socket.id})`);
+    console.log(`${socket.userHandle} connected (${socket.id})`);
 
     try {
       await addOnlineUser(socket.userId, socket.id);
@@ -73,7 +73,7 @@ module.exports = (io) => {
           io.to(id).emit('receive_message', payload);
         });
 
-        console.log("📤 Emitted to sender sockets");
+        console.log("Emitted to sender sockets");
 
         // Emit to receiver sockets
         const receiverSockets = await getUserSocketIds(receiverId);
@@ -100,7 +100,7 @@ module.exports = (io) => {
         }
 
       } catch (error) {
-        console.error('❌ Send message error:', error);
+        console.error('Send message error:', error);
       }
     });
 
@@ -126,10 +126,10 @@ module.exports = (io) => {
           });
         });
 
-        console.log("📌 Read receipt sent");
+        console.log("Read receipt sent");
 
       } catch (error) {
-        console.error('❌ Read receipt error:', error);
+        console.error('Read receipt error:', error);
       }
     });
 
@@ -137,7 +137,7 @@ module.exports = (io) => {
        DISCONNECT
     ===================================================== */
     socket.on('disconnect', async () => {
-      console.log(`❌ ${socket.userHandle} disconnected (${socket.id})`);
+      console.log(`${socket.userHandle} disconnected (${socket.id})`);
 
       try {
         await removeOnlineUser(socket.userId, socket.id);
@@ -153,7 +153,7 @@ module.exports = (io) => {
         });
 
       } catch (error) {
-        console.error('❌ Disconnect error:', error);
+        console.error('Disconnect error:', error);
       }
     });
   });
