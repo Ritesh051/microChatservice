@@ -83,7 +83,7 @@ module.exports = (io) => {
             io.to(id).emit('receive_message', payload);
           });
 
-          console.log("📤 Emitted to receiver sockets");
+          console.log("Emitted to receiver sockets");
 
           message.status = 'delivered';
           await message.save();

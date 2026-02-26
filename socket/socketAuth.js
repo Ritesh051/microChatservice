@@ -4,10 +4,6 @@ const User = require('../models/User');
 const socketAuth = async (socket, next) => {
   try {
     let token = null;
-
-    /* ===============================
-       1️⃣ Try reading from HttpOnly cookie
-    =============================== */
     const cookieHeader = socket.handshake.headers?.cookie;
 
     if (cookieHeader) {
@@ -16,25 +12,14 @@ const socketAuth = async (socket, next) => {
         .find(c => c.startsWith('authtoken='))
         ?.split('=')[1];
     }
-
-    /* ===============================
-       2️⃣ Fallback: auth.token
-    =============================== */
     if (!token && socket.handshake.auth?.token) {
       token = socket.handshake.auth.token;
     }
-
-    /* ===============================
-       3️⃣ If still no token
-    =============================== */
     if (!token) {
       console.log(' No token found in socket handshake');
       return next(new Error('Authentication token required'));
     }
 
-    /* ===============================
-       4️⃣ Verify JWT
-    =============================== */
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const userId = decoded.id || decoded._id || decoded.userId;
@@ -43,10 +28,6 @@ const socketAuth = async (socket, next) => {
       console.log('Invalid token payload:', decoded);
       return next(new Error('Invalid token payload'));
     }
-
-    /* ===============================
-       5️⃣ Find user
-    =============================== */
     const user = await User.findById(userId).select('-password');
 
     if (!user) {
@@ -54,9 +35,6 @@ const socketAuth = async (socket, next) => {
       return next(new Error('User not found'));
     }
 
-    /* ===============================
-   6️⃣ Attach user to socket
-=============================== */
     socket.userId = user._id.toString();
     socket.userHandle = user.handle || "User";
     socket.user = user;
