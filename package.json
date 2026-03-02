@@ -12,6 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "@socket.io/redis-adapter": "^8.3.0",
+    "axios": "^1.13.6",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^1.41.3",
     "compression": "^1.8.1",
@@ -27,7 +28,8 @@
     "multer": "^2.0.2",
     "multer-storage-cloudinary": "^4.0.0",
     "redis": "^5.10.0",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

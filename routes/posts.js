@@ -7,9 +7,8 @@ const Post = require('../models/Post');
 const Comment = require('../models/Comment');
 const { protect } = require('../middleware/auth');
 
-// ==========================================
 // CLOUDINARY CONFIGURATION
-// ==========================================
+
 cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
@@ -21,10 +20,7 @@ const storage = new CloudinaryStorage({
     params: {
         folder: 'daplink_feed',
         resource_type: 'auto',
-        allowed_formats: [
-            'jpg', 'jpeg', 'png', 'gif', 'webp', 'avif',
-            'mp4', 'mov', 'webm'
-        ]
+        allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'mp4', 'mov', 'webm']
     },
 });
 
@@ -37,17 +33,17 @@ router.get('/', protect, async (req, res, next) => {
     try {
         const currentUserId = req.user._id.toString();
         const posts = await Post.find()
-            .populate('author', 'handle avatar profession')
+            .populate('author', 'handle username name avatar profile profilePicture profession')
             .sort({ createdAt: -1 })
             .limit(50);
 
         const formattedPosts = posts.map((post) => ({
             id: post._id,
-            name: post.author?.handle || 'Unknown User',
+            name: post.author?.name || post.author?.username || post.author?.handle || 'Unknown User',
             authorId: post.author?._id?.toString(),
-            handle: `@${post.author?.handle || 'unknown'}`,
+            handle: `@${post.author?.handle || post.author?.username || 'unknown'}`,
             role: post.author?.profession || 'User',
-            avatar: post.author?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author?.handle || 'unknown'}`,
+            avatar: post.author?.avatar || post.author?.profilePicture || post.author?.profile || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author?.handle || post.author?.username || 'unknown'}`,
             content: post.content,
             mediaUrl: post.mediaUrl,
             mediaType: post.mediaType,
@@ -72,7 +68,7 @@ router.get('/', protect, async (req, res, next) => {
  */
 router.post('/', protect, upload.single('media'), async (req, res, next) => {
     try {
-        const { content, tags } = req.body;
+        const { content, tags, authorId } = req.body;
 
         if ((!content || !content.trim()) && !req.file) {
             return res.status(400).json({ success: false, message: 'Post must contain either text or media' });
@@ -82,9 +78,10 @@ router.post('/', protect, upload.single('media'), async (req, res, next) => {
         if (tags) {
             try { parsedTags = JSON.parse(tags); } catch (e) { parsedTags = [tags]; }
         }
+        const resolvedAuthorId = authorId || req.user.daplinkID || req.user._id;
 
         const newPost = await Post.create({
-            author: req.user._id,
+            author: resolvedAuthorId,
             content: content ? content.trim() : '',
             tags: parsedTags,
             mediaUrl: req.file ? req.file.path : null,
@@ -92,7 +89,7 @@ router.post('/', protect, upload.single('media'), async (req, res, next) => {
             xpReward: '+10 XP',
         });
 
-        await newPost.populate('author', 'handle avatar profession');
+        await newPost.populate('author', 'handle username name avatar profile profilePicture profession');
         res.status(201).json({ success: true, post: newPost });
     } catch (error) {
         next(error);
@@ -126,7 +123,7 @@ router.post('/:id/like', protect, async (req, res, next) => {
 router.get('/:id/comments', protect, async (req, res, next) => {
     try {
         const comments = await Comment.find({ post: req.params.id })
-            .populate('author', 'handle avatar profession')
+            .populate('author', 'handle username name avatar profile profilePicture profession')
             .sort({ createdAt: -1 });
         res.json({ success: true, comments });
     } catch (error) {
@@ -139,17 +136,19 @@ router.get('/:id/comments', protect, async (req, res, next) => {
  */
 router.post('/:id/comments', protect, async (req, res, next) => {
     try {
-        const { content } = req.body;
+        const { content, authorId } = req.body;
         if (!content || !content.trim()) return res.status(400).json({ success: false, message: 'Empty comment' });
+
+        const resolvedAuthorId = authorId || req.user.daplinkID || req.user._id;
 
         const newComment = await Comment.create({
             post: req.params.id,
-            author: req.user._id,
+            author: resolvedAuthorId,
             content: content.trim()
         });
 
         await Post.findByIdAndUpdate(req.params.id, { $inc: { commentCount: 1 } });
-        await newComment.populate('author', 'handle avatar profession');
+        await newComment.populate('author', 'handle username name avatar profile profilePicture profession');
         res.status(201).json({ success: true, comment: newComment });
     } catch (error) {
         next(error);
@@ -164,7 +163,11 @@ router.put('/:id', protect, async (req, res, next) => {
         const post = await Post.findById(req.params.id);
         if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
 
-        if (post.author.toString() !== req.user._id.toString()) {
+        const authorStr = post.author.toString();
+        const userStr = req.user._id.toString();
+        const daplinkStr = req.user.daplinkID?.toString();
+
+        if (authorStr !== userStr && authorStr !== daplinkStr) {
             return res.status(403).json({ success: false, message: 'Not authorized to edit this post' });
         }
 
@@ -185,7 +188,11 @@ router.delete('/:id', protect, async (req, res, next) => {
         const post = await Post.findById(req.params.id);
         if (!post) return res.status(404).json({ success: false, message: 'Post not found' });
 
-        if (post.author.toString() !== req.user._id.toString()) {
+        const authorStr = post.author.toString();
+        const userStr = req.user._id.toString();
+        const daplinkStr = req.user.daplinkID?.toString();
+
+        if (authorStr !== userStr && authorStr !== daplinkStr) {
             return res.status(403).json({ success: false, message: 'Not authorized to delete this post' });
         }
 
