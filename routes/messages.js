@@ -16,7 +16,7 @@ router.get('/unread/counts', protect, async (req, res, next) => {
         $match: {
           receiverId: new mongoose.Types.ObjectId(currentUserId),
           status: { $ne: 'read' },
-          isDeleted: false
+          isDeleted: { $ne: true } 
         }
       },
       {
@@ -62,6 +62,74 @@ router.put('/mark-read/:senderId', protect, async (req, res, next) => {
   }
 });
 
+ // MONGODB SIDEBAR FETCH
+ 
+router.get('/sidebar/conversations', protect, async (req, res, next) => {
+  try {
+    const currentUserId = req.user._id.toString();
+    const messages = await Message.find({
+      $or: [{ senderId: currentUserId }, { receiverId: currentUserId }],
+      isDeleted: { $ne: true }
+    })
+    .sort({ createdAt: -1 })
+    .lean();
+
+    const otherUserIds = new Set();
+    messages.forEach(msg => {
+      const sId = msg.senderId.toString();
+      const rId = msg.receiverId.toString();
+      if (sId === currentUserId) otherUserIds.add(rId);
+      if (rId === currentUserId) otherUserIds.add(sId);
+    });
+
+    if (otherUserIds.size === 0) return res.json([]);
+
+    const db = mongoose.connection.db;
+    const objectIds = Array.from(otherUserIds).map(id => new mongoose.Types.ObjectId(id));
+    
+    const users = await db.collection('users').find({ _id: { $in: objectIds } }).toArray();
+
+    const daplinkObjectIds = users.map(u => {
+      if (!u.daplinkID) return null;
+      try {
+        return typeof u.daplinkID === 'string' ? new mongoose.Types.ObjectId(u.daplinkID) : u.daplinkID;
+      } catch(e) { return null; }
+    }).filter(Boolean);
+    const daplinkMap = {};
+    if (daplinkObjectIds.length > 0) {
+      const daplinksData = await db.collection('links').find({ _id: { $in: daplinkObjectIds } }).toArray();
+      daplinksData.forEach(d => {
+        daplinkMap[d._id.toString()] = d;
+      });
+    }
+    const userMap = {};
+    users.forEach(u => {
+      if (u.daplinkID && daplinkMap[u.daplinkID.toString()]) {
+        u.daplinkID = daplinkMap[u.daplinkID.toString()];
+      }
+      userMap[u._id.toString()] = u;
+    });
+    const uniqueConversations = new Map();
+    messages.forEach(msg => {
+      const sId = msg.senderId.toString();
+      const rId = msg.receiverId.toString();
+      const otherUserId = sId === currentUserId ? rId : sId;
+
+      if (!uniqueConversations.has(otherUserId)) {
+        uniqueConversations.set(otherUserId, {
+          user: userMap[otherUserId] || { _id: otherUserId, handle: 'Unknown' },
+          lastMessage: { text: msg.text },
+          lastMessageTime: msg.createdAt
+        });
+      }
+    });
+
+    res.json(Array.from(uniqueConversations.values()));
+  } catch (error) {
+    console.error("🔥 Sidebar Fetch Error:", error);
+    next(error);
+  }
+});
 /**
  * GET MESSAGES WITH USER
  */

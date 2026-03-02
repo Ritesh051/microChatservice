@@ -6,14 +6,14 @@ const protect = async (req, res, next) => {
     let token = null;
 
     /* =========================
-       1️⃣ Try HttpOnly cookie
+       Try HttpOnly cookie
     ========================= */
     if (req.cookies?.authtoken) {
       token = req.cookies.authtoken;
     }
 
     /* =========================
-       2️⃣ Fallback: Authorization header
+      Fallback: Authorization header
     ========================= */
     if (
       !token &&
@@ -31,7 +31,7 @@ const protect = async (req, res, next) => {
     }
 
     /* =========================
-       3️⃣ Verify token
+      Verify token
     ========================= */
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -45,7 +45,7 @@ const protect = async (req, res, next) => {
     }
 
     /* =========================
-       4️⃣ Find user
+      Find user
     ========================= */
     const user = await User.findById(userId).select('-password');
 
