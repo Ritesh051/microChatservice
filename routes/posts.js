@@ -158,8 +158,21 @@ router.get('/search', protect, async (req, res, next) => {
 router.get('/', protect, async (req, res, next) => {
     try {
         const currentUserId = req.user._id.toString();
+        const currentDaplinkId = req.user.daplinkID ? req.user.daplinkID.toString() : null;
         
-        const rawPosts = await Post.find().sort({ createdAt: -1 }).limit(50).lean();
+        const { type } = req.query;
+        let filter = {};
+        
+        const userIds = [currentUserId];
+        if (currentDaplinkId) userIds.push(currentDaplinkId);
+
+        if (type === 'myposts') {
+            filter.author = { $in: userIds };
+        } else {
+            filter.author = { $nin: userIds };
+        }
+
+        const rawPosts = await Post.find(filter).sort({ createdAt: -1 }).limit(50).lean();
         const posts = await populateAuthorsFromDB(rawPosts);
 
         const formattedPosts = posts.map((post) => ({
