@@ -9,7 +9,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
-const path = require('path'); // <-- 1. ADDED PATH MODULE
+const path = require('path');
 
 const connectDB = require('./config/db');
 const { initRedis, closeRedis } = require('./config/redis');
@@ -29,6 +29,7 @@ const app = express();
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 4000;
+
 const FRONTEND_ORIGIN =
   process.env.FRONTEND_URL || 'http://localhost:3000';
 
@@ -36,13 +37,17 @@ const FRONTEND_ORIGIN =
 
 app.set('trust proxy', 1);
 
-// helmet config to allow cross-origin resources (like images)
-app.use(helmet({
-  crossOriginResourcePolicy: false, 
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: false,
+  })
+);
 
 app.use(compression());
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
+
+app.use(
+  morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev')
+);
 
 app.use(
   cors({
@@ -51,15 +56,16 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: '50mb' })); 
+app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-// <-- 2. ADDED THIS LINE TO SERVE UPLOADED FILES -->
-// This makes sure files in 'public/uploads' can be accessed at 'http://localhost:4000/uploads/filename.jpg'
-app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+/* ================= STATIC FILES ================= */
 
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, 'public/uploads'))
+);
 
 /* ================= ROUTES ================= */
 
@@ -75,6 +81,8 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/posts', postRoutes);
 
+/* ================= 404 ================= */
+
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -82,19 +90,26 @@ app.use((req, res) => {
   });
 });
 
+/* ================= ERROR HANDLER ================= */
+
 app.use(errorHandler);
 
 /* ================= START SERVER ================= */
 
 const startServer = async () => {
   try {
+    /* ---- DATABASE ---- */
+
     await connectDB();
-    await initRedis();
-
     console.log('MongoDB Connected');
-    console.log('Redis Connected');
 
-    // Create Socket.IO ONCE
+    /* ---- REDIS ---- */
+
+    await initRedis();
+    console.log('Redis Initialized');
+
+    /* ---- SOCKET.IO ---- */
+
     const io = new Server(server, {
       cors: {
         origin: FRONTEND_ORIGIN,
@@ -102,23 +117,32 @@ const startServer = async () => {
       },
     });
 
-    //Redis Adapter (LOCAL REDIS FIX)
+    /* ---- REDIS ADAPTER FOR SOCKET.IO ---- */
+
     const pubClient = createClient({
+      url: process.env.REDIS_URL,
       socket: {
-        host: process.env.REDIS_HOST,
-        port: Number(process.env.REDIS_PORT),
+        reconnectStrategy: (retries) =>
+          Math.min(retries * 50, 500),
       },
-      password: process.env.REDIS_PASSWORD || undefined,
     });
 
     const subClient = pubClient.duplicate();
+
+    pubClient.on('error', (err) =>
+      console.error('Redis Adapter Error:', err)
+    );
 
     await pubClient.connect();
     await subClient.connect();
 
     io.adapter(createAdapter(pubClient, subClient));
 
+    console.log('Socket Redis Adapter Connected');
+
     socketHandler(io);
+
+    /* ---- SERVER START ---- */
 
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
@@ -133,10 +157,10 @@ const startServer = async () => {
 
 startServer();
 
-/* ================= SHUTDOWN ================= */
+/* ================= GRACEFUL SHUTDOWN ================= */
 
 process.on('SIGINT', async () => {
-  console.log('\n Gracefully shutting down...');
+  console.log('\nGracefully shutting down...');
 
   try {
     await mongoose.connection.close();
@@ -146,6 +170,7 @@ process.on('SIGINT', async () => {
       console.log('Server closed');
       process.exit(0);
     });
+
   } catch (err) {
     console.error('Shutdown error:', err);
     process.exit(1);
