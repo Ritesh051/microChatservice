@@ -24,6 +24,8 @@ const protect = async (req, res, next) => {
     }
 
     console.log('Extracted Token:', token);
+    console.log("Cookies:", req.cookies);
+console.log("Raw cookie header:", req.headers.cookie);
 
     if (!token) {
       return res.status(401).json({
