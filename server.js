@@ -50,7 +50,7 @@ app.use(
 );
 
 const allowedOrigins = [
-  process.env.FRONTEND_URL,
+  process.env.FRONTEND_DEVELOPMENT_ORIGIN,
   FRONTEND_ORIGIN,
 ];
 
