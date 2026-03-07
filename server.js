@@ -117,7 +117,7 @@ const startServer = async () => {
 
     const io = new Server(server, {
       cors: {
-        origin: FRONTEND_ORIGIN,
+        origin: allowedOrigins,
         credentials: true,
       },
     });
