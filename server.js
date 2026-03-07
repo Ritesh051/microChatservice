@@ -49,10 +49,15 @@ app.use(
   morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev')
 );
 
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  FRONTEND_ORIGIN,
+];
+
 app.use(
   cors({
-    origin: FRONTEND_ORIGIN,
-    credentials: true,
+    origin: allowedOrigins,
+    credentials: true
   })
 );
 
